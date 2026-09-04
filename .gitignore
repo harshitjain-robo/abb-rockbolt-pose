@@ -1,0 +1,58 @@
+# --- Never commit: model weights ---
+*.pt
+*.pth
+*.onnx
+*.engine
+*.ckpt
+
+# --- Never commit: datasets, archives, point clouds ---
+*.zip
+*.tar
+*.tar.gz
+*.npy
+*.ply
+*.pcd
+data/
+dataset/
+input_dataset/
+_total_images/
+_total_depth/
+
+# --- Never commit: run outputs ---
+outputs/
+output/
+output folder/
+mask-rcnn_output/
+pointnet-output/
+runs/
+*.log
+
+# --- Working notes, not for publication ---
+_NOTES_FOR_README.md
+
+# --- Local tooling that produced the figures in docs/results/ ---
+# The rendered figures ship, the scripts that made them do not. Only the
+# dataset utility below is part of the repo.
+scripts/*
+!scripts/renumber_dataset.py
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+
+# --- Editors and OS ---
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
