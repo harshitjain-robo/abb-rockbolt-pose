@@ -39,6 +39,7 @@ scripts/*
 # --- Python ---
 __pycache__/
 *.py[cod]
+.pytest_cache/
 *$py.class
 *.egg-info/
 .eggs/
