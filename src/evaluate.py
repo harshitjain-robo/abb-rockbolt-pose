@@ -25,6 +25,8 @@ import argparse
 import numpy as np
 import pandas as pd
 
+from geometry import axis_angle_deg, geodesic_angle_deg, quaternion_axis, unit
+
 # --- Which columns hold which estimate ---
 ESTIMATE_COLUMNS = {
     "centroid": ["bolt_cx", "bolt_cy", "bolt_cz"],
@@ -60,6 +62,17 @@ def load_predictions(path, estimate):
         "y": df[columns[1]],
         "z": df[columns[2]],
     })
+
+    # Carry the rotation through when it is there, so orientation can be scored
+    # alongside position. The quaternion is the network's, the endpoints are the
+    # PCA axis, and the point of reporting both is that they disagree.
+    for name in ("Qx", "Qy", "Qz", "Qw"):
+        if name in df.columns:
+            out[name] = df[name]
+    if {"x1", "y1", "z1", "x2", "y2", "z2"}.issubset(df.columns):
+        out["pca_axis"] = list(
+            df[["x2", "y2", "z2"]].to_numpy() - df[["x1", "y1", "z1"]].to_numpy())
+
     # Detections keep the order infer_pipeline wrote them in, so the nth row for
     # a frame is that frame's nth instance.
     out["instance"] = out.groupby("frame").cumcount()
@@ -81,6 +94,10 @@ def load_ground_truth(path):
         "z": df["z"],
     })
     out["instance"] = df["instance"] if "instance" in df.columns else np.nan
+
+    # Orientation is optional. Supply qx,qy,qz,qw to have rotation scored too.
+    if {"qx", "qy", "qz", "qw"}.issubset(df.columns):
+        out["quat"] = list(df[["qx", "qy", "qz", "qw"]].to_numpy())
     return out
 
 
@@ -127,14 +144,28 @@ def match(predictions, ground_truth):
             error = np.array([prediction["x"] - truth["x"],
                               prediction["y"] - truth["y"],
                               prediction["z"] - truth["z"]])
-            pairs.append({
+            record = {
                 "frame": frame,
                 "instance": int(prediction["instance"]),
                 "pred_x": prediction["x"], "pred_y": prediction["y"], "pred_z": prediction["z"],
                 "true_x": truth["x"], "true_y": truth["y"], "true_z": truth["z"],
                 "error_x": error[0], "error_y": error[1], "error_z": error[2],
                 "error": float(np.linalg.norm(error)),
-            })
+            }
+
+            true_quat = truth.get("quat")
+            if true_quat is not None and not np.any(pd.isna(true_quat)):
+                true_axis = quaternion_axis(true_quat)
+                if "Qx" in prediction:
+                    pred_quat = [prediction[k] for k in ("Qx", "Qy", "Qz", "Qw")]
+                    record["quat_error_deg"] = geodesic_angle_deg(pred_quat, true_quat)
+                    record["quat_axis_error_deg"] = axis_angle_deg(
+                        quaternion_axis(pred_quat), true_axis)
+                pca = prediction.get("pca_axis")
+                if pca is not None and np.linalg.norm(pca) > 0:
+                    record["pca_axis_error_deg"] = axis_angle_deg(pca, true_axis)
+
+            pairs.append(record)
 
     return pd.DataFrame(pairs), unmatched, used_nearest
 
@@ -165,6 +196,24 @@ def report(pairs, unmatched, used_nearest, estimate):
           f"y {pairs['error_y'].abs().mean():.3f} m   "
           f"z {pairs['error_z'].abs().mean():.3f} m")
 
+    rotation_columns = [c for c in ("quat_error_deg", "quat_axis_error_deg",
+                                    "pca_axis_error_deg") if c in pairs]
+    if rotation_columns:
+        labels = {
+            "quat_error_deg": "network quaternion, full orientation",
+            "quat_axis_error_deg": "network quaternion, bolt axis only",
+            "pca_axis_error_deg": "PCA on the cloud, bolt axis only",
+        }
+        print(f"\n{'orientation':<40}{'median':>10}{'worst':>10}")
+        for column in rotation_columns:
+            values = pairs[column].dropna()
+            if values.empty:
+                continue
+            print(f"  {labels[column]:<38}{values.median():>8.1f} deg{values.max():>7.1f} deg")
+        print("A bolt is a cylinder, so rotation about its own axis does not "
+              "change what\nthe camera sees. The axis rows are the part of "
+              "orientation that is recoverable.")
+
     if unmatched:
         frames = ", ".join(sorted(set(unmatched)))
         print(f"\nNo detection above the score threshold in: {frames}")
@@ -182,7 +231,7 @@ def main():
     parser.add_argument("--predictions", required=True,
                         help="pose_results.csv written by infer_pipeline.py")
     parser.add_argument("--ground-truth", required=True,
-                        help="CSV of measured positions: filename,x,y,z[,instance]")
+                        help="CSV of measured positions: filename,x,y,z[,instance][,qx,qy,qz,qw]")
     parser.add_argument("--estimate", choices=sorted(ESTIMATE_COLUMNS), default="centroid",
                         help="which position to score (default: centroid)")
     parser.add_argument("--out", help="optional CSV to write the per-instance errors to")
