@@ -1,0 +1,23 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+
+      # The geometry, the back-projection and the synthetic bolts are what the
+      # tests touch, and none of them needs torch, Detectron2 or a GPU.
+      - name: Install test dependencies
+        run: pip install numpy scipy pandas pytest
+
+      - name: Run tests
+        run: pytest
