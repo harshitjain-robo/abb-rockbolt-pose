@@ -31,9 +31,32 @@ def get_endpoints_pca(pcd):
     return pt1, pt2, length
 
 
+def backproject(depth, mask, K, depth_scale):
+    """Lifts the masked depth pixels into camera-frame 3D points.
+
+    Standard pinhole back-projection: a pixel at (u, v) with depth z sits at
+    ((u - cx) * z / fx, (v - cy) * z / fy, z). Only pixels inside the mask are
+    kept, so the result is the bolt rather than the whole scene.
+    """
+    fx, fy = K[0, 0], K[1, 1]
+    cx, cy = K[0, 2], K[1, 2]
+
+    # np.nonzero walks the mask in row-major order, the same order the old
+    # pixel-by-pixel loop did, so the points come out in the same sequence.
+    v, u = np.nonzero(mask)
+    z = depth[v, u] * depth_scale
+    keep = z > 0.001
+    u, v, z = u[keep], v[keep], z[keep]
+
+    x = (u - cx) * z / fx
+    y = (v - cy) * z / fy
+    return np.stack((x, y, z), axis=1)
+
+
 def principal_axis(pcd):
     """Unit vector along the direction the cloud is most spread in."""
     points = np.asarray(pcd.points)
     centered = points - points.mean(axis=0)
     eigvals, eigvecs = np.linalg.eigh(np.cov(centered.T))
     return eigvecs[:, np.argmax(eigvals)]
+

@@ -22,6 +22,7 @@ from detectron2 import model_zoo
 from detectron2.utils.visualizer import Visualizer
 import albumentations as A
 import open3d as o3d
+from geometry import backproject
 from pose_model import PointNet2PoseRegression, SyntheticPoseDataset, pose_loss
 import pandas as pd
 
@@ -190,28 +191,6 @@ def run_mask_rcnn_on_folder(input_dir, output_dir, vis_dir=None):
 
 
 # --- Mask and depth to point cloud ---
-def backproject(depth, mask, K, depth_scale):
-    """Lifts the masked depth pixels into camera-frame 3D points.
-
-    Standard pinhole back-projection: a pixel at (u, v) with depth z sits at
-    ((u - cx) * z / fx, (v - cy) * z / fy, z). Only pixels inside the mask are
-    kept, so the result is the bolt rather than the whole scene.
-    """
-    fx, fy = K[0, 0], K[1, 1]
-    cx, cy = K[0, 2], K[1, 2]
-    height, width = depth.shape
-    points = []
-    for v in range(height):
-        for u in range(width):
-            if mask[v, u]:
-                z = depth[v, u] * depth_scale
-                if z <= 0.001:
-                    continue
-                x = (u - cx) * z / fx
-                y = (v - cy) * z / fy
-                points.append([x, y, z])
-    return np.array(points)
-
 def convert_mask_to_pointcloud(mask_folder, depth_folder, output_folder):
     K = np.array(config.TRAIN_INTRINSICS)
 
