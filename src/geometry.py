@@ -60,3 +60,36 @@ def principal_axis(pcd):
     eigvals, eigvecs = np.linalg.eigh(np.cov(centered.T))
     return eigvecs[:, np.argmax(eigvals)]
 
+
+def unit(v):
+    """Normalises a vector, leaving a zero vector alone."""
+    v = np.asarray(v, dtype=np.float64)
+    n = np.linalg.norm(v)
+    return v if n == 0 else v / n
+
+
+def quaternion_axis(quat):
+    """The bolt axis a rotation implies. Bolts are generated along +z."""
+    from scipy.spatial.transform import Rotation
+
+    return Rotation.from_quat(unit(quat)).apply([0.0, 0.0, 1.0])
+
+
+def axis_angle_deg(a, b):
+    """Angle between two directions, in degrees.
+
+    A bolt has no head or tail, so a and -a are the same line and the cosine
+    is taken absolute.
+    """
+    cos = abs(float(np.dot(unit(a), unit(b))))
+    return float(np.degrees(np.arccos(min(1.0, cos))))
+
+
+def geodesic_angle_deg(q_pred, q_true):
+    """Rotation angle between two quaternions, in degrees.
+
+    Absolute dot product, since q and -q are the same rotation. Scoring them
+    as different is what makes an MSE on raw components misleading.
+    """
+    cos = abs(float(np.dot(unit(q_pred), unit(q_true))))
+    return float(np.degrees(2.0 * np.arccos(min(1.0, cos))))
