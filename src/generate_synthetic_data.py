@@ -10,8 +10,6 @@ Real clouds carry no pose ground truth, so this is what the network learns from.
 
 import os
 import numpy as np
-import open3d as o3d
-import pandas as pd
 import random
 from scipy.spatial.transform import Rotation as R
 
@@ -21,9 +19,6 @@ import config
 num_samples = config.SYNTH_NUM_SAMPLES
 output_dir = config.SYNTHETIC_DIR
 pcd_dir = config.SYNTHETIC_PCD_DIR
-os.makedirs(pcd_dir, exist_ok=True)
-
-pose_records = []
 
 # --- Parameter space ---
 length_range = config.SYNTH_LENGTH_RANGE  # meters
@@ -74,30 +69,41 @@ def apply_pose(points, quat, translation):
     return rotation.apply(points) + translation
 
 # --- Generation loop ---
-for i in range(num_samples):
-    length = np.random.uniform(*length_range)
-    radius = np.random.uniform(*radius_range)
-    bent = random.choice([True, False])
+def main():
+    import open3d as o3d
+    import pandas as pd
 
-    bolt = generate_rockbolt(length, radius, bend=bent)
-    bolt = add_rock_occlusions(bolt, rock_density)
+    os.makedirs(pcd_dir, exist_ok=True)
+    pose_records = []
 
-    quat, trans = generate_random_pose()
-    transformed = apply_pose(bolt, quat, trans)
+    for i in range(num_samples):
+        length = np.random.uniform(*length_range)
+        radius = np.random.uniform(*radius_range)
+        bent = random.choice([True, False])
 
-    pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(transformed)
-    filename = f"bolt_{i:04d}.ply"
-    o3d.io.write_point_cloud(os.path.join(pcd_dir, filename), pcd)
+        bolt = generate_rockbolt(length, radius, bend=bent)
+        bolt = add_rock_occlusions(bolt, rock_density)
 
-    pose_records.append({
-        "filename": filename,
-        "Tx": trans[0], "Ty": trans[1], "Tz": trans[2],
-        "Qx": quat[0], "Qy": quat[1], "Qz": quat[2], "Qw": quat[3]
-    })
+        quat, trans = generate_random_pose()
+        transformed = apply_pose(bolt, quat, trans)
 
-# --- Pose metadata ---
-pd.DataFrame(pose_records).to_csv(
-    os.path.join(output_dir, "pose_metadata_train.csv"), index=False)
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(transformed)
+        filename = f"bolt_{i:04d}.ply"
+        o3d.io.write_point_cloud(os.path.join(pcd_dir, filename), pcd)
 
-print(f"Wrote {num_samples} synthetic clouds and pose metadata to {output_dir}")
+        pose_records.append({
+            "filename": filename,
+            "Tx": trans[0], "Ty": trans[1], "Tz": trans[2],
+            "Qx": quat[0], "Qy": quat[1], "Qz": quat[2], "Qw": quat[3]
+        })
+
+    # --- Pose metadata ---
+    pd.DataFrame(pose_records).to_csv(
+        os.path.join(output_dir, "pose_metadata_train.csv"), index=False)
+
+    print(f"Wrote {num_samples} synthetic clouds and pose metadata to {output_dir}")
+
+
+if __name__ == "__main__":
+    main()
