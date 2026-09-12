@@ -208,7 +208,7 @@ PCA stays as the baseline any learned version has to beat. At 0.62 degrees media
 
 ## Third-party licenses
 
-My code in this repository is MIT, per [LICENSE](LICENSE). It depends on Detectron2 (Apache-2.0), PyTorch (BSD-3-Clause), Open3D (MIT), and NumPy, SciPy, pandas and pytest (BSD and MIT). Segmentation starts from Detectron2's COCO-pretrained Mask R-CNN weights, which are fetched at training time and are not redistributed here. No datasets or trained weights ship with this repository.
+My code in this repository is MIT, per [LICENSE](LICENSE). It depends on Detectron2 (Apache-2.0), PyTorch and torchvision (BSD-3-Clause), Open3D (MIT), OpenCV (Apache-2.0), Pillow (HPND), tqdm (MPL-2.0 or MIT), matplotlib (BSD-compatible), and NumPy, SciPy, pandas, scikit-learn, albumentations, pycocotools and pytest (BSD and MIT). Segmentation starts from Detectron2's COCO-pretrained Mask R-CNN weights, which are fetched at training time and are not redistributed here. No datasets or trained weights ship with this repository.
 
 ## License
 
