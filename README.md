@@ -206,6 +206,10 @@ Regress the bolt axis instead of the full rotation. That is 5-DoF, it is well po
 
 PCA stays as the baseline any learned version has to beat. At 0.62 degrees median it currently is not beaten, and a learned axis regressor that cannot clear that bar is not worth shipping.
 
+## Third-party licenses
+
+My code in this repository is MIT, per [LICENSE](LICENSE). It depends on Detectron2 (Apache-2.0), PyTorch (BSD-3-Clause), Open3D (MIT), and NumPy, SciPy, pandas and pytest (BSD and MIT). Segmentation starts from Detectron2's COCO-pretrained Mask R-CNN weights, which are fetched at training time and are not redistributed here. No datasets or trained weights ship with this repository.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
